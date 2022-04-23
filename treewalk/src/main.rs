@@ -1,6 +1,12 @@
 use std::env;
 use std::fs::read_to_string;
 
+mod lexer;
+
+use lexer::Token;
+use lexer::TokenType;
+use lexer::Literal;
+
 fn main() {
     println!("Lox interpreter");
     let args : Vec<String> = env::args().skip(1).collect();
@@ -14,6 +20,19 @@ fn main() {
     } else {
         println!("Opening the REPL...");
     }
+
+    let t1 = Token {
+        tok_type: TokenType::LeftParen,
+        lexeme: String::from("("),
+        literal: None,
+        line: 11
+    };
+
+    println!("This is a token: {}", t1);
+
+    let t2 = Token::string_literal(String::from("this is something"), 42);
+
+    println!("This is another token: {}", t2);
 }
 
 fn run(contents: &str) {
