@@ -110,7 +110,8 @@ pub struct Scanner {
     start: usize,
     current: usize,
     line: usize,
-    pub tokens: Vec<Token>
+    pub tokens: Vec<Token>,
+    pub had_error: bool
 }
 
 impl Scanner {
@@ -121,7 +122,8 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
-            tokens: vec!()
+            tokens: vec!(),
+            had_error: false
         }
     }
 
@@ -146,7 +148,18 @@ impl Scanner {
             ')' => self.add_token(TokenType::RightParen),
             '{' => self.add_token(TokenType::LeftBrace),
             '}' => self.add_token(TokenType::RightBrace),
-            _ => ()
+            ',' => self.add_token(TokenType::Comma),
+            '.' => self.add_token(TokenType::Dot),
+            '-' => self.add_token(TokenType::Minus),
+            '+' => self.add_token(TokenType::Plus),
+            ';' => self.add_token(TokenType::Semicolon),
+            '/' => self.add_token(TokenType::Slash),     // TODO can begin comment
+            '*' => self.add_token(TokenType::Star),
+            '!' => self.add_alternatives('=', TokenType::BangEqual, TokenType::Bang),
+            '=' => self.add_alternatives('=', TokenType::EqualEqual, TokenType::Equal),
+            '>' => self.add_alternatives('=', TokenType::GreaterEqual, TokenType::Greater),
+            '<' => self.add_alternatives('=', TokenType::LessEqual, TokenType::Less),
+            _ => self.error(format!("Unrecognized character: {}", c))
         }
     }
 
@@ -160,5 +173,27 @@ impl Scanner {
         let lexeme = String::from(self.source.get(self.start..self.current).
                                   expect("this should never happen 2"));
         self.tokens.push(Token::new(typ, lexeme, self.line));
+    }
+
+    fn error(&mut self, message: String) {
+        println!("Error in line {}: {}", self.line, message);
+        self.had_error = true;
+    }
+
+    fn match_next(&mut self, c: char) -> bool {
+        if self.is_at_end() {
+            false
+        } else if self.source_chars[self.current] != c {
+            false
+        } else {
+            self.current += 1;
+            true
+        }
+    }
+
+    fn add_alternatives(&mut self, next: char,
+                        typ_match: TokenType, typ_not_match: TokenType) {
+        let does_match = self.match_next(next);
+        self.add_token(if does_match { typ_match} else { typ_not_match });
     }
 }

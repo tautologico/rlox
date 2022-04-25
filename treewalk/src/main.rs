@@ -22,25 +22,18 @@ fn main() {
         println!("Opening the REPL...");
     }
 
-    let t1 = Token {
-        tok_type: TokenType::LeftParen,
-        lexeme: String::from("("),
-        literal: None,
-        line: 11
-    };
-
-    println!("This is a token: {}", t1);
-
-    let t2 = Token::string_literal(String::from("this is something"), 42);
-
-    println!("This is another token: {}", t2);
-
-    let mut scanner = Scanner::new(String::from("(){}({})"));
+    let mut scanner = Scanner::new(String::from("(/*){;+-}!({.,.!=<>====})"));
 
     scanner.scan_tokens();
 
     for tok in scanner.tokens {
         println!("Next token: {}", tok);
+    }
+
+    if scanner.had_error {
+        println!("*** Errors occurred during lexing.");
+    } else {
+        println!("*** No lexical errors detected.")
     }
 }
 
