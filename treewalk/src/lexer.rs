@@ -1,6 +1,4 @@
 use std::fmt;
-use std::iter::Peekable;
-use std::str::Chars;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenType {
@@ -144,9 +142,9 @@ impl Scanner {
 
     fn scan_token(&mut self) {
         // this should work because scan_token is only called after checking is_at_end
-        let c = self.advance();
+        //let c = self.advance();
 
-        match c {
+        match self.advance() {
             '(' => self.add_token(TokenType::LeftParen),
             ')' => self.add_token(TokenType::RightParen),
             '{' => self.add_token(TokenType::LeftBrace),
@@ -162,8 +160,9 @@ impl Scanner {
             '=' => self.add_alternatives('=', TokenType::EqualEqual, TokenType::Equal),
             '>' => self.add_alternatives('=', TokenType::GreaterEqual, TokenType::Greater),
             '<' => self.add_alternatives('=', TokenType::LessEqual, TokenType::Less),
+            '"' => self.string(),
             c if c.is_whitespace() => self.process_whitespace(c),
-            _ => self.error(format!("Unrecognized character: {}", c)),
+            c => self.error(format!("Unrecognized character: {}", c)),
         }
     }
 
@@ -215,15 +214,12 @@ impl Scanner {
         if self.match_next('/') {
             while let Some(c) = self.peek() {
                 if c == '\n' {
+                    // leave the newline in the stream to count lines
                     break;
                 } else {
                     self.advance();
                 }
             }
-            // let mut c = self.advance();
-            // while c != '\n' && !self.is_at_end() {
-            //     c = self.advance();
-            // }
         } else {
             self.add_token(TokenType::Slash);
         }
@@ -234,6 +230,33 @@ impl Scanner {
             self.line += 1;
         }
     }
+
+    fn string(&mut self) {
+        while let Some(c) = self.peek() {
+            if c == '"' {
+                break;
+            } else {
+                if c == '\n' {
+                    self.line += 1;
+                }
+                self.advance();
+            }
+        }
+
+        if self.is_at_end() {
+            self.error("Unterminated string literal".to_string());
+            return;
+        }
+
+        self.advance(); // consume the closing double quote
+
+        let value = String::from(
+            self.source
+                .get(self.start + 1..self.current - 1)
+                .expect("this should never happen 3"),
+        );
+        self.tokens.push(Token::string_literal(value, self.line));
+    }
 }
 
 // tests
@@ -242,6 +265,8 @@ fn test_operators() {
     let mut scanner = Scanner::new("(/*){ ;+\t -}!({.,.!=<>====!})");
 
     scanner.scan_tokens();
+
+    assert!(!scanner.had_error);
 
     let types = vec![
         TokenType::LeftParen,
@@ -275,4 +300,26 @@ fn test_operators() {
         let typ = typ_it.next().expect("q?");
         assert_eq!(tok.tok_type, *typ);
     }
+}
+
+#[test]
+fn test_string_literal_1() {
+    let mut scanner = Scanner::new("\"abscondmal\"");
+
+    scanner.scan_tokens();
+
+    assert!(!scanner.had_error);
+
+    let mut tok_it = scanner.tokens.iter();
+
+    let str_tok = tok_it
+        .next()
+        .expect("There should be a string token in the stream");
+
+    assert_eq!(str_tok.tok_type, TokenType::String);
+    assert_eq!(str_tok.lexeme, "abscondmal");
+    assert_eq!(
+        str_tok.literal,
+        Some(Literal::String("abscondmal".to_string()))
+    );
 }
