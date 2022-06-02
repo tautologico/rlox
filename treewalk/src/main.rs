@@ -3,14 +3,14 @@ use std::fs::read_to_string;
 
 mod lexer;
 
-use lexer::Token;
-use lexer::TokenType;
 use lexer::Literal;
 use lexer::Scanner;
+use lexer::Token;
+use lexer::TokenType;
 
 fn main() {
     println!("Lox interpreter");
-    let args : Vec<String> = env::args().skip(1).collect();
+    let args: Vec<String> = env::args().skip(1).collect();
     if args.len() > 1 {
         println!("Usage: rlox [filename]");
         std::process::exit(1);
@@ -22,7 +22,7 @@ fn main() {
         println!("Opening the REPL...");
     }
 
-    let mut scanner = Scanner::new(String::from("(/*){;+-}!({.,.!=<>====})"));
+    let mut scanner = Scanner::new("(/*){ ; +\t -}!// this is a comment\n({.,.!=<>====!!})");
 
     scanner.scan_tokens();
 
@@ -44,6 +44,6 @@ fn run(contents: &str) {
 fn process_file(fname: &str) {
     match read_to_string(fname) {
         Ok(s) => run(&s),
-        Err(e) => println!("Error opening file: {}", e)
+        Err(e) => println!("Error opening file: {}", e),
     }
 }
