@@ -51,14 +51,14 @@ pub enum TokenType {
     Eof,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum Literal {
-    Number(i64),
+    Number(f64),
     String(String),
     Identifier(String),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct Token {
     pub tok_type: TokenType,
     pub lexeme: String,
@@ -79,8 +79,17 @@ impl Token {
     pub fn string_literal(s: String, line: usize) -> Token {
         Token {
             tok_type: TokenType::String,
-            lexeme: s.clone(),
+            lexeme: s.clone(), // TODO: the lexeme should include quotes
             literal: Some(Literal::String(s.clone())),
+            line: line,
+        }
+    }
+
+    pub fn number_literal(val: f64, lex: &str, line: usize) -> Token {
+        Token {
+            tok_type: TokenType::Number,
+            lexeme: lex.to_string(),
+            literal: Some(Literal::Number(val)),
             line: line,
         }
     }
@@ -161,6 +170,7 @@ impl Scanner {
             '>' => self.add_alternatives('=', TokenType::GreaterEqual, TokenType::Greater),
             '<' => self.add_alternatives('=', TokenType::LessEqual, TokenType::Less),
             '"' => self.string(),
+            c if c.is_digit(10) => self.number(),
             c if c.is_whitespace() => self.process_whitespace(c),
             c => self.error(format!("Unrecognized character: {}", c)),
         }
@@ -257,6 +267,54 @@ impl Scanner {
         );
         self.tokens.push(Token::string_literal(value, self.line));
     }
+
+    fn advance_digits(&mut self) {
+        while let Some(c) = self.peek() {
+            if !c.is_digit(10) {
+                break;
+            }
+            self.advance();
+        }
+    }
+
+    fn number(&mut self) {
+        self.advance_digits();
+
+        // a dot after a number literal may be used as a method call
+        // on the number, so we should only consume the dot if there
+        // are more digits after it
+        if let Some(c) = self.peek() {
+            if c == '.' && self.peek_next_is_digit() {
+                self.advance(); // consume the dot
+
+                // get the fractional part
+                self.advance_digits();
+            }
+        }
+
+        let str_value = String::from(
+            self.source
+                .get(self.start..self.current)
+                .expect("there should be a string in this range"),
+        );
+        let val: f64 = str_value.parse().unwrap();
+
+        self.tokens
+            .push(Token::number_literal(val, &str_value, self.line));
+    }
+
+    fn peek_next_is_digit(&self) -> bool {
+        if self.current + 2 >= self.source.len() {
+            false
+        } else {
+            let c = self.source_chars[self.current + 2];
+            if c.is_digit(10) {
+                true
+            } else {
+                false
+            }
+        }
+    }
 }
 
 // tests
@@ -322,4 +380,37 @@ fn test_string_literal_1() {
         str_tok.literal,
         Some(Literal::String("abscondmal".to_string()))
     );
+}
+
+#[test]
+fn test_number_literal_1() {
+    let mut scanner = Scanner::new("1234 + 37.52");
+
+    scanner.scan_tokens();
+
+    assert!(!scanner.had_error);
+
+    let mut tok_it = scanner.tokens.iter();
+
+    let num_tok_1 = tok_it
+        .next()
+        .expect("There should be a number token in the stream");
+
+    assert_eq!(num_tok_1.tok_type, TokenType::Number);
+    assert_eq!(num_tok_1.lexeme, "1234");
+    assert_eq!(num_tok_1.literal, Some(Literal::Number(1234.0)));
+
+    let op_tok = tok_it
+        .next()
+        .expect("There should be a Plus token in the stream");
+
+    assert_eq!(op_tok.tok_type, TokenType::Plus);
+
+    let num_tok_2 = tok_it
+        .next()
+        .expect("There should be a number token in the stream");
+
+    assert_eq!(num_tok_2.tok_type, TokenType::Number);
+    assert_eq!(num_tok_2.lexeme, "37.52");
+    assert_eq!(num_tok_2.literal, Some(Literal::Number(37.52)));
 }
