@@ -3,10 +3,7 @@ use std::fs::read_to_string;
 
 mod lexer;
 
-use lexer::Literal;
 use lexer::Scanner;
-use lexer::Token;
-use lexer::TokenType;
 
 fn main() {
     println!("Lox interpreter");
@@ -22,7 +19,8 @@ fn main() {
         println!("Opening the REPL...");
     }
 
-    let mut scanner = Scanner::new("(/*){ ; +\t -}!// this is a comment\n({.,.!=<>====!!})");
+    let mut scanner =
+        Scanner::new("(/*){ ; +\t -}!// this is a comment\n({.,.!=<>====!!})\nif x == 23");
 
     scanner.scan_tokens();
 

@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenType {
     // single character tokens
     LeftParen,
@@ -94,6 +95,15 @@ impl Token {
         }
     }
 
+    pub fn identifier(id: &str, line: usize) -> Token {
+        Token {
+            tok_type: TokenType::Identifier,
+            lexeme: id.to_string(),
+            literal: Some(Literal::Identifier(id.to_string())),
+            line: line,
+        }
+    }
+
     pub fn eof(line: usize) -> Token {
         Token {
             tok_type: TokenType::Eof,
@@ -121,6 +131,7 @@ pub struct Scanner {
     line: usize,
     pub tokens: Vec<Token>,
     pub had_error: bool,
+    reserved_words: HashMap<String, TokenType>,
 }
 
 impl Scanner {
@@ -133,7 +144,29 @@ impl Scanner {
             line: 1,
             tokens: vec![],
             had_error: false,
+            reserved_words: Scanner::build_reserved_word_map(),
         }
+    }
+
+    fn build_reserved_word_map() -> HashMap<String, TokenType> {
+        HashMap::from([
+            ("and".to_string(), TokenType::And),
+            ("class".to_string(), TokenType::Class),
+            ("else".to_string(), TokenType::Else),
+            ("false".to_string(), TokenType::False),
+            ("fun".to_string(), TokenType::Fun),
+            ("for".to_string(), TokenType::For),
+            ("if".to_string(), TokenType::If),
+            ("nil".to_string(), TokenType::Nil),
+            ("or".to_string(), TokenType::Or),
+            ("print".to_string(), TokenType::Print),
+            ("return".to_string(), TokenType::Return),
+            ("super".to_string(), TokenType::Super),
+            ("this".to_string(), TokenType::This),
+            ("true".to_string(), TokenType::True),
+            ("var".to_string(), TokenType::Var),
+            ("while".to_string(), TokenType::While),
+        ])
     }
 
     fn is_at_end(&self) -> bool {
@@ -172,6 +205,7 @@ impl Scanner {
             '"' => self.string(),
             c if c.is_digit(10) => self.number(),
             c if c.is_whitespace() => self.process_whitespace(c),
+            c if c.is_alphabetic() => self.identifier(),
             c => self.error(format!("Unrecognized character: {}", c)),
         }
     }
@@ -277,6 +311,14 @@ impl Scanner {
         }
     }
 
+    fn current_lexeme(&self) -> String {
+        String::from(
+            self.source
+                .get(self.start..self.current)
+                .expect("there should be a string in this range"),
+        )
+    }
+
     fn number(&mut self) {
         self.advance_digits();
 
@@ -292,11 +334,7 @@ impl Scanner {
             }
         }
 
-        let str_value = String::from(
-            self.source
-                .get(self.start..self.current)
-                .expect("there should be a string in this range"),
-        );
+        let str_value = self.current_lexeme();
         let val: f64 = str_value.parse().unwrap();
 
         self.tokens
@@ -313,6 +351,23 @@ impl Scanner {
             } else {
                 false
             }
+        }
+    }
+
+    fn identifier(&mut self) {
+        while let Some(c) = self.peek() {
+            if !c.is_alphabetic() {
+                break;
+            }
+            self.advance();
+        }
+
+        let ident = self.current_lexeme();
+
+        // check if it is a reserved word
+        match self.reserved_words.get(&ident) {
+            None => self.tokens.push(Token::identifier(&ident, self.line)),
+            Some(&toktyp) => self.add_token(toktyp),
         }
     }
 }
@@ -413,4 +468,111 @@ fn test_number_literal_1() {
     assert_eq!(num_tok_2.tok_type, TokenType::Number);
     assert_eq!(num_tok_2.lexeme, "37.52");
     assert_eq!(num_tok_2.literal, Some(Literal::Number(37.52)));
+}
+
+#[test]
+fn test_keywords_1() {
+    let mut scanner = Scanner::new("class for lunch");
+
+    scanner.scan_tokens();
+
+    assert!(!scanner.had_error);
+
+    let mut tok_it = scanner.tokens.iter();
+
+    let kw_tok_1 = tok_it
+        .next()
+        .expect("There should be a keyword token in the stream");
+
+    assert_eq!(kw_tok_1.tok_type, TokenType::Class);
+
+    let kw_tok_2 = tok_it
+        .next()
+        .expect("There should be a keyword token in the stream");
+
+    assert_eq!(kw_tok_2.tok_type, TokenType::For);
+
+    let id_tok = tok_it
+        .next()
+        .expect("There should be an identifier in the stream");
+
+    assert_eq!(id_tok.tok_type, TokenType::Identifier);
+    assert_eq!(
+        id_tok.literal,
+        Some(Literal::Identifier("lunch".to_string()))
+    );
+}
+
+#[test]
+fn test_keywords_2() {
+    let mut scanner = Scanner::new("and for if while class return else false print true");
+
+    scanner.scan_tokens();
+
+    assert!(!scanner.had_error);
+
+    let types = vec![
+        TokenType::And,
+        TokenType::For,
+        TokenType::If,
+        TokenType::While,
+        TokenType::Class,
+        TokenType::Return,
+        TokenType::Else,
+        TokenType::False,
+        TokenType::Print,
+        TokenType::True,
+        TokenType::Eof,
+    ];
+
+    let mut typ_it = types.iter();
+    for tok in scanner.tokens {
+        let typ = typ_it.next().expect("A token was expected");
+        assert_eq!(tok.tok_type, *typ);
+    }
+}
+
+#[test]
+fn test_identifiers_1() {
+    let mut scanner = Scanner::new("x = y + 37;");
+
+    scanner.scan_tokens();
+
+    assert!(!scanner.had_error);
+
+    let mut tok_it = scanner.tokens.iter();
+
+    let id_tok_1 = tok_it
+        .next()
+        .expect("There should be an identifier in the stream");
+
+    assert_eq!(id_tok_1.tok_type, TokenType::Identifier);
+    assert_eq!(id_tok_1.literal, Some(Literal::Identifier("x".to_string())));
+
+    let eq_tok = tok_it
+        .next()
+        .expect("There should be an equals token in the stream");
+
+    assert_eq!(eq_tok.tok_type, TokenType::Equal);
+
+    let id_tok_2 = tok_it
+        .next()
+        .expect("There should be an identifier in the stream");
+
+    assert_eq!(id_tok_2.tok_type, TokenType::Identifier);
+    assert_eq!(id_tok_2.literal, Some(Literal::Identifier("y".to_string())));
+
+    let plus_tok = tok_it
+        .next()
+        .expect("There should be a plus token in the stream");
+
+    assert_eq!(plus_tok.tok_type, TokenType::Plus);
+
+    let num_tok_1 = tok_it
+        .next()
+        .expect("There should be a number token in the stream");
+
+    assert_eq!(num_tok_1.tok_type, TokenType::Number);
+    assert_eq!(num_tok_1.lexeme, "37");
+    assert_eq!(num_tok_1.literal, Some(Literal::Number(37.0)));
 }
