@@ -112,6 +112,10 @@ impl Token {
             line: line,
         }
     }
+
+    pub fn is_eof(&self) -> bool {
+        self.tok_type == TokenType::Eof
+    }
 }
 
 impl fmt::Display for Token {
