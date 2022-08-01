@@ -26,7 +26,7 @@ pub enum TokenType {
     Less,
     LessEqual,
 
-    // literals
+    // tokens that hold a value
     Identifier,
     String,
     Number,
@@ -53,7 +53,7 @@ pub enum TokenType {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Literal {
+pub enum Value {
     Number(f64),
     String(String),
     Identifier(String),
@@ -63,7 +63,7 @@ pub enum Literal {
 pub struct Token {
     pub tok_type: TokenType,
     pub lexeme: String,
-    pub literal: Option<Literal>,
+    pub value: Option<Value>,
     pub line: usize,
 }
 
@@ -72,25 +72,25 @@ impl Token {
         Token {
             tok_type: typ,
             lexeme: lexeme.clone(),
-            literal: None,
+            value: None,
             line: line,
         }
     }
 
-    pub fn string_literal(s: String, line: usize) -> Token {
+    pub fn string_token(s: String, line: usize) -> Token {
         Token {
             tok_type: TokenType::String,
             lexeme: s.clone(), // TODO: the lexeme should include quotes
-            literal: Some(Literal::String(s.clone())),
+            value: Some(Value::String(s.clone())),
             line: line,
         }
     }
 
-    pub fn number_literal(val: f64, lex: &str, line: usize) -> Token {
+    pub fn number_token(val: f64, lex: &str, line: usize) -> Token {
         Token {
             tok_type: TokenType::Number,
             lexeme: lex.to_string(),
-            literal: Some(Literal::Number(val)),
+            value: Some(Value::Number(val)),
             line: line,
         }
     }
@@ -99,7 +99,7 @@ impl Token {
         Token {
             tok_type: TokenType::Identifier,
             lexeme: id.to_string(),
-            literal: Some(Literal::Identifier(id.to_string())),
+            value: Some(Value::Identifier(id.to_string())),
             line: line,
         }
     }
@@ -108,7 +108,7 @@ impl Token {
         Token {
             tok_type: TokenType::Eof,
             lexeme: String::from(""),
-            literal: None,
+            value: None,
             line: line,
         }
     }
@@ -116,7 +116,7 @@ impl Token {
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.literal {
+        match &self.value {
             None => write!(f, "{:?} {}", self.tok_type, self.lexeme),
             Some(l) => write!(f, "{:?} {} {:?}", self.tok_type, self.lexeme, l),
         }
@@ -299,7 +299,7 @@ impl Scanner {
                 .get(self.start + 1..self.current - 1)
                 .expect("this should never happen 3"),
         );
-        self.tokens.push(Token::string_literal(value, self.line));
+        self.tokens.push(Token::string_token(value, self.line));
     }
 
     fn advance_digits(&mut self) {
@@ -338,7 +338,7 @@ impl Scanner {
         let val: f64 = str_value.parse().unwrap();
 
         self.tokens
-            .push(Token::number_literal(val, &str_value, self.line));
+            .push(Token::number_token(val, &str_value, self.line));
     }
 
     fn peek_next_is_digit(&self) -> bool {
@@ -432,8 +432,8 @@ fn test_string_literal_1() {
     assert_eq!(str_tok.tok_type, TokenType::String);
     assert_eq!(str_tok.lexeme, "abscondmal");
     assert_eq!(
-        str_tok.literal,
-        Some(Literal::String("abscondmal".to_string()))
+        str_tok.value,
+        Some(Value::String("abscondmal".to_string()))
     );
 }
 
@@ -453,7 +453,7 @@ fn test_number_literal_1() {
 
     assert_eq!(num_tok_1.tok_type, TokenType::Number);
     assert_eq!(num_tok_1.lexeme, "1234");
-    assert_eq!(num_tok_1.literal, Some(Literal::Number(1234.0)));
+    assert_eq!(num_tok_1.value, Some(Value::Number(1234.0)));
 
     let op_tok = tok_it
         .next()
@@ -467,7 +467,7 @@ fn test_number_literal_1() {
 
     assert_eq!(num_tok_2.tok_type, TokenType::Number);
     assert_eq!(num_tok_2.lexeme, "37.52");
-    assert_eq!(num_tok_2.literal, Some(Literal::Number(37.52)));
+    assert_eq!(num_tok_2.value, Some(Value::Number(37.52)));
 }
 
 #[test]
@@ -498,8 +498,8 @@ fn test_keywords_1() {
 
     assert_eq!(id_tok.tok_type, TokenType::Identifier);
     assert_eq!(
-        id_tok.literal,
-        Some(Literal::Identifier("lunch".to_string()))
+        id_tok.value,
+        Some(Value::Identifier("lunch".to_string()))
     );
 }
 
@@ -547,7 +547,7 @@ fn test_identifiers_1() {
         .expect("There should be an identifier in the stream");
 
     assert_eq!(id_tok_1.tok_type, TokenType::Identifier);
-    assert_eq!(id_tok_1.literal, Some(Literal::Identifier("x".to_string())));
+    assert_eq!(id_tok_1.value, Some(Value::Identifier("x".to_string())));
 
     let eq_tok = tok_it
         .next()
@@ -560,7 +560,7 @@ fn test_identifiers_1() {
         .expect("There should be an identifier in the stream");
 
     assert_eq!(id_tok_2.tok_type, TokenType::Identifier);
-    assert_eq!(id_tok_2.literal, Some(Literal::Identifier("y".to_string())));
+    assert_eq!(id_tok_2.value, Some(Value::Identifier("y".to_string())));
 
     let plus_tok = tok_it
         .next()
@@ -574,5 +574,5 @@ fn test_identifiers_1() {
 
     assert_eq!(num_tok_1.tok_type, TokenType::Number);
     assert_eq!(num_tok_1.lexeme, "37");
-    assert_eq!(num_tok_1.literal, Some(Literal::Number(37.0)));
+    assert_eq!(num_tok_1.value, Some(Value::Number(37.0)));
 }
