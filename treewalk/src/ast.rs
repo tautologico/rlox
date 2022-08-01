@@ -84,8 +84,16 @@ impl Expr {
         Expr::Literal(Literal::String(s.to_string()))
     }
 
-    pub fn grouping_expr(e: Expr) -> Expr {
+    pub fn group(e: Expr) -> Expr {
         Expr::Grouping(Box::new(e))
+    }
+
+    pub fn binary(op: BinOp, e1: Expr, e2: Expr) -> Expr {
+        Expr::Binary(op, Box::new(e1), Box::new(e2))
+    }
+
+    pub fn unary(op: UnOp, e: Expr) -> Expr {
+        Expr::Unary(op, Box::new(e))
     }
 }
 
@@ -114,9 +122,9 @@ fn test_ast_display() {
     assert_eq!(format!("{}", lit_str), "\"this is a string\"");
 
     // build a larger expression
-    let exp = Expr::Binary(BinOp::Mult,
-                           Box::new(Expr::Unary(UnOp::Minus, Box::new(Expr::number_literal(123.0)))),
-                           Box::new(Expr::Grouping(Box::new(Expr::number_literal(45.67)))));
+    let exp = Expr::binary(BinOp::Mult,
+                           Expr::unary(UnOp::Minus, Expr::number_literal(123.0)),
+                           Expr::group(Expr::number_literal(45.67)));
 
     assert_eq!(format!("{}", exp), "(* (neg 123) (group 45.67))");
 }
