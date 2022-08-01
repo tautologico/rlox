@@ -2,8 +2,10 @@ use std::env;
 use std::fs::read_to_string;
 
 mod lexer;
+mod ast;
 
 use lexer::Scanner;
+
 
 fn main() {
     println!("Lox interpreter");
