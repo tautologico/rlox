@@ -3,9 +3,10 @@ use std::fs::read_to_string;
 
 mod lexer;
 mod ast;
+mod parser;
 
 use lexer::Scanner;
-
+use parser::Parser;
 
 fn main() {
     println!("Lox interpreter");
@@ -35,10 +36,29 @@ fn main() {
     } else {
         println!("*** No lexical errors detected.")
     }
+
+    let mut parser = Parser::new("3 + 7 * (48 - 6)");
+    //let mut parser = Parser::new("42");
+
+    let expr = parser.parse();
+
+    println!("AST: {}", expr);
 }
 
 fn run(contents: &str) {
-    println!("{}", contents);
+    let mut scanner = Scanner::new(contents);
+
+    scanner.scan_tokens();
+
+    for tok in scanner.tokens {
+        println!("Next token: {}", tok);
+    }
+
+    if scanner.had_error {
+        println!("*** Errors occurred during lexing.");
+    } else {
+        println!("*** No lexical errors detected.")
+    }
 }
 
 fn process_file(fname: &str) {
