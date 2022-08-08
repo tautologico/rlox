@@ -1,4 +1,6 @@
 use std::env;
+use std::io;
+use std::io::Write;
 use std::fs::read_to_string;
 
 mod lexer;
@@ -20,29 +22,25 @@ fn main() {
         process_file(&args[0]);
     } else {
         println!("Opening the REPL...");
+        match repl() {
+            Ok(_) => println!("Ok..."),
+            Err(_) => println!("There was some error")
+        }
     }
+}
 
-    let mut scanner =
-        Scanner::new("(/*){ ; +\t -}!// this is a comment\n({.,.!=<>====!!})\nif x == 23");
+fn repl() -> io::Result<()> {
+    print!("> ");
+    io::stdout().flush()?;
+    let mut buffer = String::new();
+    io::stdin().read_line(&mut buffer)?;
+    println!("{}", buffer);
 
-    scanner.scan_tokens();
-
-    for tok in scanner.tokens {
-        println!("Next token: {}", tok);
-    }
-
-    if scanner.had_error {
-        println!("*** Errors occurred during lexing.");
-    } else {
-        println!("*** No lexical errors detected.")
-    }
-
-    let mut parser = Parser::new("3 + 7 * (48 - 6)");
-    //let mut parser = Parser::new("42");
-
+    let mut parser = Parser::new(&buffer);
     let expr = parser.parse();
-
     println!("AST: {}", expr);
+
+    Ok(())
 }
 
 fn run(contents: &str) {
@@ -65,5 +63,33 @@ fn process_file(fname: &str) {
     match read_to_string(fname) {
         Ok(s) => run(&s),
         Err(e) => println!("Error opening file: {}", e),
+    }
+}
+
+#[allow(dead_code)]
+fn parser_test_1() {
+    let mut parser = Parser::new("3 + 7 * (48 - 6)");
+    //let mut parser = Parser::new("42");
+
+    let expr = parser.parse();
+
+    println!("AST: {}", expr);
+}
+
+#[allow(dead_code)]
+fn scanner_test_1() {
+    let mut scanner =
+        Scanner::new("(/*){ ; +\t -}!// this is a comment\n({.,.!=<>====!!})\nif x == 23");
+
+    scanner.scan_tokens();
+
+    for tok in scanner.tokens {
+        println!("Next token: {}", tok);
+    }
+
+    if scanner.had_error {
+        println!("*** Errors occurred during lexing.");
+    } else {
+        println!("*** No lexical errors detected.")
     }
 }
