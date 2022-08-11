@@ -6,6 +6,7 @@ use std::fs::read_to_string;
 mod lexer;
 mod ast;
 mod parser;
+mod interpreter;
 
 use lexer::Scanner;
 use parser::Parser;
